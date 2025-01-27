@@ -113,6 +113,8 @@ class HfpEnabler(private val context: Context) : AutoCloseable {
 
     private val connectedBluetoothDevices = mutableListOf<BluetoothDevice>()
 
+    private var muteAudioPlayer: MuteAudioPlayer? = null
+
     init {
         bluetoothAdapter.getProfileProxy(
             context, bluetoothProfileListener, BluetoothProfile.HEADSET
@@ -124,6 +126,7 @@ class HfpEnabler(private val context: Context) : AutoCloseable {
         context.registerReceiver(scoStateReceiver, IntentFilter().apply {
             addAction(AudioManager.ACTION_SCO_AUDIO_STATE_UPDATED)
         })
+        muteAudioPlayer = MuteAudioPlayer()
 
         if (!audioManager.isBluetoothScoAvailableOffCall) {
             Log.w(TAG, "The platform does not support SCO off call, HFP will not function")
@@ -133,6 +136,8 @@ class HfpEnabler(private val context: Context) : AutoCloseable {
     override fun close() {
         stopSco()
 
+        muteAudioPlayer?.close()
+        muteAudioPlayer = null
         context.unregisterReceiver(scoStateReceiver)
         context.unregisterReceiver(bluetoothConnectionReceiver)
         bluetoothHeadsetProxy?.let {
