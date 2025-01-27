@@ -1,21 +1,22 @@
 package com.orange.hfp
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.ui.Modifier
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 
 import com.orange.hfp.permission.MyPermissionManager
+import com.orange.hfp.ui.MainScreen
 import com.orange.hfp.ui.theme.HFPTheme
+
+import kotlinx.coroutines.flow.MutableStateFlow
 
 class MainActivity : ComponentActivity() {
     private val permissionManager by lazy { MyPermissionManager(this) }
+    private var hfpEnabler = MutableStateFlow<HfpEnabler?>(null);
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -28,12 +29,34 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             HFPTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Box(modifier = Modifier.padding(innerPadding)) {
-                        Text("Hello, Android")
-                    }
-                }
+                val enabler by hfpEnabler.collectAsState()
+                MainScreen(
+                    isHfpEnabled = enabler != null,
+                    enableHfp = { enableHfp() },
+                    disableHfp = { disableHfp() },
+                )
             }
         }
+    }
+
+    override fun onDestroy() {
+        disableHfp()
+
+        super.onDestroy()
+    }
+
+    private fun enableHfp(): Boolean {
+        permissionManager.updateIsGranted()
+        if (permissionManager.isGranted.value) {
+            hfpEnabler.value = HfpEnabler(this as Context)
+            return true
+        } else {
+            return false
+        }
+    }
+
+    private fun disableHfp() {
+        hfpEnabler.value?.close()
+        hfpEnabler.value = null
     }
 }
